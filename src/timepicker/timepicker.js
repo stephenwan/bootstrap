@@ -292,4 +292,173 @@ angular.module('ui.bootstrap.timepicker', [])
       }
     }
   };
-});
+})
+
+.directive('timepickerPopup', ['$compile', '$parse', '$document', '$position', '$filter', '$log',
+  function($compile, $parse, $document, $position, $filter, $log) {
+      var linkFn = function(scope, elem, attrs, ngModel) {
+          
+          var documentClickBind = function(event) {
+              if (scope.isOpen && event.target !== elem[0]) {
+                  scope.$apply(function(){ scope.isOpen = false;});
+              }
+          };
+
+          scope.$parent.open = function(event) {
+              scope.isOpen = true;
+              event.stopPropagation();
+              event.preventDefault();
+          };
+          
+            
+          var popupEl = angular.element('<div timepicker-popup-wrap></div>');
+          
+          var $popup = $compile(popupEl)(scope);
+
+          elem.after($popup);
+       
+            
+          scope.$watch('isOpen', function(value) {
+              if (value) {                  
+                  scope.$broadcast('timepicker.focus');
+                  scope.position = $position.offset(elem);
+                  scope.position.top = scope.position.top + elem.prop('offsetHeight');
+                  
+                  $document.bind('click', documentClickBind);
+                  $document.bind('keydown', keydown);
+              } else {
+                  $document.unbind('click', documentClickBind);
+                  $document.unbind('keydown', keydown);
+              }
+          });
+
+          var keydown = function(event) {
+              scope.keydown(event);
+          };
+          
+          scope.keydown = function(event) {
+              if (event.which === 27) {
+                  event.preventDefault();
+                  if (scope.isOpen) {
+                      event.stopPropagation();
+                  }
+                  scope.close();
+              } else if ( event.which === 13 && scope.isOpen) {                 
+                  scope.close();
+              }
+          };
+
+          elem.bind('keydown', keydown);                        
+          
+          scope.close = function() {
+              scope.isOpen = false;
+              elem[0].focus();
+          };
+          
+          
+          scope.$on('$destroy', function() {
+              $popup.remove();
+              elem.unblind('keydown', keydown);
+              $document.unbind('click', documentClickBind);
+          });
+
+          function parseTime(viewValue) {
+              if (! viewValue) {
+                  return null;
+              } else {
+                  var _viewValue = viewValue.replace(/(\s|[.])/g, '').toLowerCase();
+                  var matched = _viewValue.match(/^(\d{1,2})[:](\d{1,2})(am|pm)?$/);
+
+                  if (matched == null) {
+                      return undefined;
+                  }
+                  var hours = ((matched[3] && matched[3] === 'pm' )? 12 :0) + parseInt(matched[1]);
+                  var minutes = parseInt(matched[2]);
+                  if ( hours > 23 || minutes > 59) {
+                      return undefined;
+                  }
+                  var time = new Date();
+                  time.setHours(hours);
+                  time.setMinutes(minutes);
+                  scope.time = time;
+                  return time;
+              }                            
+          }
+
+          function validator(modelValue, viewValue) {
+              var value = modelValue || viewValue;
+              if (value == null) {
+                  return true;
+              } else if (angular.isDefined(value)) {
+                  return true;
+              } else {
+                  return false;
+              }
+          }
+
+          function formatTime(modelValue) {              
+              if (ngModel.$isEmpty(modelValue)) {
+                  return modelValue;
+              } else {
+                  return $filter('date')(modelValue, scope.showMeridian?'hh:mma':'HH:mm');
+              }
+          }
+
+          function readTime() {
+              var html = elem.html();     
+              ngModel.$setViewValue(html);
+          }
+
+          ngModel.$viewChangeListeners.push(function() {
+              scope.time = ngModel.$viewValue;
+          });
+          ngModel.$validators.time = validator;
+          ngModel.$parsers.push(parseTime);
+          ngModel.$formatters.push(formatTime);
+          
+          elem.on('blur keyup change', function() {
+              scope.$evalAsync(readTime);
+          });
+          readTime();
+
+          scope.$on('destroy', function() {
+              $popup.remove();
+              elem.unbind('keydown', keydown);
+              $document.unbind('click', documentClickBind);
+              $document.unblind('keydown', keydown);
+          });
+                                       
+      };
+      
+      return {
+          restrict: 'EA',
+          require: 'ngModel',
+          scope: {
+              isOpen: '=?',
+              time: '= ngModel'
+          },
+          link: linkFn
+      };
+  }])
+.directive('timepickerPopupWrap', ['$log', '$position',
+  function($log, $position) {
+    return {
+        restrict: 'EA',
+        replace: true,
+        transclude: true,
+        templateUrl: 'template/timepicker/popup.html',
+        link: function(scope, elem, attrs) {
+            scope.$watch('isOpen', function(value) {
+                $log.log('in wrapper isopen', value);
+            });
+            
+            elem.bind('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+            });
+        }
+    };
+  }])
+
+
+;

@@ -21,4 +21,14 @@
   <button class="btn btn-default" ng-click="update()">Set to 14:00</button>
   <button class="btn btn-danger" ng-click="clear()">Clear</button>
 
+  <div class="row">
+    <div class="col-xs-6">
+      <p class="input-group">
+        <input type="text" class="form-control" timepicker-popup ng-model="time" is-open="opened" />
+        <span class="input-group-btn">
+          <button type="button" class="btn btn-default" ng-click="open($event)"><i class="glyphicon glyphicon-time"></i></button>
+        </span>
+      </p>
+    </div>
+  </div>
 </div>
